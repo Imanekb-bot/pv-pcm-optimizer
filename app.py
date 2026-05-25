@@ -153,7 +153,7 @@ gain_mad = gain_year * prix_kwh
 
 pcm_cost = {"RT21": 280, "RT25": 320, "RT31": 360, "RT35": 390}
 cout_systeme = pcm_cost.get(pcm, 320) * surface_module * 3.2
-retour = cout_systeme / gain_mad if gain_mad > 0 else 0
+
 
 # ==========================
 # MAIN METRICS
@@ -258,7 +258,7 @@ e4.metric("Gain annuel valorisé", f"{gain_mad:.1f} MAD/an")
 e5, e6, e7 = st.columns(3)
 e5.metric("Gain énergétique annuel", f"{gain_year:.2f} kWh/an")
 e6.metric("Coût système PCM", f"{cout_systeme:.0f} MAD")
-e7.metric("Retour simple", f"{retour:.1f} ans")
+
 
 # ==========================
 # GRAPHS
@@ -389,7 +389,7 @@ Energie PV-PCM : {E_pcm_day:.3f} kWh/jour
 Gain annuel : {gain_year:.2f} kWh/an
 Valorisation annuelle : {gain_mad:.2f} MAD/an
 Coût système PCM : {cout_systeme:.0f} MAD
-Retour simple : {retour:.1f} ans
+
 """
 
 st.download_button(
