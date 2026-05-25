@@ -3,9 +3,6 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# ==========================
-# CONFIG PAGE
-# ==========================
 st.set_page_config(
     page_title="PV–PCM Encapsulé Maroc",
     page_icon="☀️",
@@ -13,41 +10,59 @@ st.set_page_config(
 )
 
 # ==========================
-# STYLE CSS
+# STYLE
 # ==========================
 st.markdown("""
 <style>
-.main {
-    background-color: #f8fafc;
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(180deg, #f8fafc 0%, #eef6f4 100%);
 }
 .hero {
-    background: linear-gradient(135deg, #0f766e, #0f172a);
-    padding: 35px;
-    border-radius: 22px;
+    background: linear-gradient(135deg, #064e3b, #0f766e, #f59e0b);
+    padding: 42px;
+    border-radius: 28px;
     color: white;
     margin-bottom: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+.hero h1 {
+    font-size: 42px;
+    font-weight: 900;
+}
+.hero p {
+    font-size: 18px;
 }
 .card {
     background: white;
-    padding: 22px;
-    border-radius: 18px;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-    border-left: 6px solid #0f766e;
+    padding: 24px;
+    border-radius: 22px;
+    box-shadow: 0 6px 25px rgba(15,23,42,0.10);
+    border: 1px solid #e2e8f0;
+    height: 150px;
 }
 .metric-title {
     color: #64748b;
     font-size: 15px;
+    font-weight: 600;
 }
 .metric-value {
-    color: #0f172a;
-    font-size: 30px;
-    font-weight: 800;
+    color: #064e3b;
+    font-size: 32px;
+    font-weight: 900;
 }
-.section-title {
+.section {
     color: #0f172a;
-    font-size: 25px;
-    font-weight: 800;
-    margin-top: 25px;
+    font-size: 28px;
+    font-weight: 900;
+    margin-top: 35px;
+    margin-bottom: 15px;
+}
+.info-box {
+    background: white;
+    padding: 24px;
+    border-radius: 20px;
+    border-left: 6px solid #0f766e;
+    box-shadow: 0 5px 18px rgba(0,0,0,0.08);
 }
 .footer {
     text-align: center;
@@ -58,7 +73,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================
-# LOAD DATA
+# DATA
 # ==========================
 @st.cache_data
 def load_data():
@@ -72,15 +87,14 @@ def load_data():
 all_results, opt_saison, opt_ville, synthese = load_data()
 
 # ==========================
-# HERO
+# HEADER
 # ==========================
 st.markdown("""
 <div class="hero">
-<h1>Plateforme d’optimisation PV–PCM encapsulé au Maroc</h1>
-<h3>Dimensionnement thermo-électrique selon la ville, la saison et le matériau PCM</h3>
+<h1>Plateforme intelligente de dimensionnement PV–PCM encapsulé</h1>
 <p>
-Application développée à partir des résultats de simulation Python du projet PFE.
-Les valeurs affichées proviennent directement de la base de résultats Excel.
+Optimisation thermo-électrique d’un module photovoltaïque refroidi par matériau à changement de phase,
+selon la ville, la saison et les conditions d’exploitation.
 </p>
 </div>
 """, unsafe_allow_html=True)
@@ -88,61 +102,71 @@ Les valeurs affichées proviennent directement de la base de résultats Excel.
 st.markdown("""
 **Développé par :** Imane Kaab  
 **Encadré par :** Pr. Lahoucine Atourki  
-**Formation :** Master Énergies Renouvelables et Stockage – Université Mohammed V de Rabat
+**Master :** Énergies Renouvelables et Stockage – Université Mohammed V de Rabat
 """)
 
 # ==========================
 # SIDEBAR
 # ==========================
-st.sidebar.title("Paramètres d'entrée")
+st.sidebar.title("Paramètres de dimensionnement")
 
-ville = st.sidebar.selectbox("Ville", sorted(all_results["Ville"].unique()))
+ville = st.sidebar.selectbox("Ville étudiée", sorted(all_results["Ville"].unique()))
 saison = st.sidebar.selectbox("Saison", sorted(all_results["Saison"].unique()))
 panel_type = st.sidebar.selectbox("Type de panneau PV", ["Monocristallin", "Polycristallin"])
-power = st.sidebar.number_input("Puissance nominale du panneau (W)", 100, 800, 450)
+power = st.sidebar.slider("Puissance nominale du module PV (Wc)", 100, 800, 450, 10)
+prix_kwh = st.sidebar.number_input("Prix de l’électricité (MAD/kWh)", 0.5, 3.0, 1.2)
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("Hypothèses économiques")
-prix_kwh = st.sidebar.number_input("Prix électricité (MAD/kWh)", 0.5, 3.0, 1.2)
-surface_module = st.sidebar.number_input("Surface module (m²)", 1.0, 3.0, 2.0)
+eta_ref = 0.20 if panel_type == "Monocristallin" else 0.17
+surface_module = power / (1000 * eta_ref)
 
 # ==========================
-# FILTER
+# FILTER DATA
 # ==========================
 data = all_results[(all_results["Ville"] == ville) & (all_results["Saison"] == saison)]
+best = opt_saison[(opt_saison["Ville"] == ville) & (opt_saison["Saison"] == saison)].iloc[0]
 
-best = opt_saison[
-    (opt_saison["Ville"] == ville) &
-    (opt_saison["Saison"] == saison)
-].iloc[0]
+pcm = best["PCM"]
 
-pcm_best = best["PCM"]
+# Architecture rules
+if best["Tmax_PV_seul_C"] >= 50:
+    thickness = "40 mm"
+    coverage = "90 %"
+    channels = "4 canaux"
+    architecture = "encapsulation dense avec canaux de ventilation"
+elif best["Tmax_PV_seul_C"] >= 42:
+    thickness = "34 mm"
+    coverage = "80 %"
+    channels = "3 à 4 canaux"
+    architecture = "encapsulation intermédiaire optimisée"
+else:
+    thickness = "25 mm"
+    coverage = "60 à 70 %"
+    channels = "2 canaux"
+    architecture = "encapsulation légère adaptée au climat"
 
-# Estimation coût simple et transparente
-cost_pcm = {
-    "RT21": 750,
-    "RT25": 850,
-    "RT31": 950,
-    "RT35": 1050
-}
+# Power-dependent calculations
+E_pv_day = best["E_PV_seul_kWh_m2_day"] * surface_module
+E_pcm_day = best["E_PV_PCM_kWh_m2_day"] * surface_module
+gain_day = E_pcm_day - E_pv_day
+gain_year = gain_day * 365
+gain_mad = gain_year * prix_kwh
 
-cout_estime = cost_pcm.get(pcm_best, 900) * surface_module
-gain_kwh_day = (best["E_PV_PCM_kWh_m2_day"] - best["E_PV_seul_kWh_m2_day"]) * surface_module
-gain_mad_year = gain_kwh_day * 365 * prix_kwh
-roi = cout_estime / gain_mad_year if gain_mad_year > 0 else 0
+pcm_cost = {"RT21": 280, "RT25": 320, "RT31": 360, "RT35": 390}
+cout_systeme = pcm_cost.get(pcm, 320) * surface_module * 3.2
+retour = cout_systeme / gain_mad if gain_mad > 0 else 0
 
 # ==========================
-# RESULTATS PRINCIPAUX
+# MAIN METRICS
 # ==========================
-st.markdown(f"<div class='section-title'>Résultat optimal : {ville} – {saison}</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='section'>Résultat optimal pour {ville} – {saison}</div>", unsafe_allow_html=True)
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     st.markdown(f"""
     <div class="card">
-    <div class="metric-title">PCM optimal</div>
-    <div class="metric-value">{pcm_best}</div>
+    <div class="metric-title">PCM recommandé</div>
+    <div class="metric-value">{pcm}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -171,25 +195,75 @@ with c4:
     """, unsafe_allow_html=True)
 
 # ==========================
-# ARCHITECTURE
+# ARCHITECTURE IMAGE
 # ==========================
-st.markdown("<div class='section-title'>Architecture recommandée</div>", unsafe_allow_html=True)
+st.markdown("<div class='section'>Architecture PV–PCM encapsulé proposée</div>", unsafe_allow_html=True)
 
-a1, a2, a3 = st.columns(3)
+colA, colB = st.columns([1.2, 1])
 
-with a1:
-    st.info(f"**Matériau PCM recommandé :** {pcm_best}")
+with colA:
+    st.markdown("""
+    <div class="info-box">
+    <svg width="100%" height="330" viewBox="0 0 850 330">
+      <rect x="60" y="30" width="720" height="45" rx="12" fill="#38bdf8"/>
+      <text x="420" y="58" text-anchor="middle" fill="#0f172a" font-size="18" font-weight="bold">Verre frontal</text>
 
-with a2:
-    st.info("**Architecture :** PCM encapsulé en face arrière du module PV")
+      <rect x="60" y="82" width="720" height="40" rx="10" fill="#fde68a"/>
+      <text x="420" y="108" text-anchor="middle" fill="#0f172a" font-size="18" font-weight="bold">Cellules photovoltaïques</text>
 
-with a3:
-    st.info("**Objectif :** réduction thermique + amélioration du rendement électrique")
+      <rect x="60" y="130" width="720" height="35" rx="10" fill="#94a3b8"/>
+      <text x="420" y="153" text-anchor="middle" fill="white" font-size="17" font-weight="bold">Face arrière du module</text>
+
+      <rect x="60" y="180" width="720" height="95" rx="18" fill="#0f766e"/>
+      <text x="420" y="210" text-anchor="middle" fill="white" font-size="20" font-weight="bold">Capsules PCM encapsulées</text>
+      <text x="420" y="238" text-anchor="middle" fill="white" font-size="16">Stockage thermique latent et réduction de la température PV</text>
+
+      <rect x="105" y="245" width="110" height="18" rx="8" fill="#ccfbf1"/>
+      <rect x="270" y="245" width="110" height="18" rx="8" fill="#ccfbf1"/>
+      <rect x="435" y="245" width="110" height="18" rx="8" fill="#ccfbf1"/>
+      <rect x="600" y="245" width="110" height="18" rx="8" fill="#ccfbf1"/>
+      <text x="420" y="305" text-anchor="middle" fill="#0f172a" font-size="17" font-weight="bold">Canaux d’air pour évacuation thermique</text>
+    </svg>
+    </div>
+    """, unsafe_allow_html=True)
+
+with colB:
+    st.markdown(f"""
+    <div class="info-box">
+    <h3>Configuration recommandée</h3>
+    <p><b>Type PCM :</b> {pcm}</p>
+    <p><b>Épaisseur proposée :</b> {thickness}</p>
+    <p><b>Taux de couverture :</b> {coverage}</p>
+    <p><b>Ventilation arrière :</b> {channels}</p>
+    <p><b>Architecture :</b> {architecture}</p>
+    <p>
+    Cette architecture vise à limiter l’échauffement du module tout en conservant
+    une évacuation thermique suffisante à l’arrière du système.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ==========================
-# GRAPHES
+# ENERGY AND ECONOMY
 # ==========================
-st.markdown("<div class='section-title'>Analyse graphique</div>", unsafe_allow_html=True)
+st.markdown("<div class='section'>Performance énergétique et valorisation économique</div>", unsafe_allow_html=True)
+
+e1, e2, e3, e4 = st.columns(4)
+
+e1.metric("Surface calculée du module", f"{surface_module:.2f} m²")
+e2.metric("Énergie PV seul", f"{E_pv_day:.3f} kWh/j")
+e3.metric("Énergie PV–PCM", f"{E_pcm_day:.3f} kWh/j")
+e4.metric("Gain annuel valorisé", f"{gain_mad:.1f} MAD/an")
+
+e5, e6, e7 = st.columns(3)
+e5.metric("Gain énergétique annuel", f"{gain_year:.2f} kWh/an")
+e6.metric("Coût système PCM", f"{cout_systeme:.0f} MAD")
+e7.metric("Retour simple", f"{retour:.1f} ans")
+
+# ==========================
+# GRAPHS
+# ==========================
+st.markdown("<div class='section'>Analyse comparative des PCM</div>", unsafe_allow_html=True)
 
 g1, g2 = st.columns(2)
 
@@ -198,8 +272,8 @@ with g1:
         data,
         x="PCM",
         y="Reduction_Tmax_C",
-        title="Réduction de la température maximale selon le PCM",
-        text_auto=".2f"
+        text_auto=".2f",
+        title="Réduction de la température maximale"
     )
     st.plotly_chart(fig1, use_container_width=True)
 
@@ -208,8 +282,8 @@ with g2:
         data,
         x="PCM",
         y="Gain_E_percent",
-        title="Gain électrique selon le PCM",
-        text_auto=".2f"
+        text_auto=".2f",
+        title="Gain électrique journalier"
     )
     st.plotly_chart(fig2, use_container_width=True)
 
@@ -218,32 +292,14 @@ fig3 = px.line(
     x="PCM",
     y=["Tmax_PV_seul_C", "Tmax_PV_PCM_C"],
     markers=True,
-    title="Comparaison thermique : PV seul vs PV–PCM"
+    title="Température maximale : PV seul vs PV–PCM"
 )
 st.plotly_chart(fig3, use_container_width=True)
 
 # ==========================
-# ETUDE ECONOMIQUE
+# TABLES
 # ==========================
-st.markdown("<div class='section-title'>Étude économique estimative</div>", unsafe_allow_html=True)
-
-e1, e2, e3, e4 = st.columns(4)
-
-e1.metric("Coût estimé", f"{cout_estime:.0f} MAD")
-e2.metric("Gain énergétique/jour", f"{gain_kwh_day:.3f} kWh/j")
-e3.metric("Gain économique/an", f"{gain_mad_year:.1f} MAD/an")
-e4.metric("Retour simple", f"{roi:.1f} ans")
-
-st.warning("""
-L’étude économique est une estimation préliminaire.  
-Elle dépend du prix réel du PCM, de la surface du module, du prix de l’électricité et des conditions climatiques annuelles.
-Elle est présentée comme indicateur d’aide à la décision, pas comme étude financière définitive.
-""")
-
-# ==========================
-# TABLEAU
-# ==========================
-st.markdown("<div class='section-title'>Base de comparaison pour la configuration choisie</div>", unsafe_allow_html=True)
+st.markdown("<div class='section'>Résultats numériques détaillés</div>", unsafe_allow_html=True)
 
 st.dataframe(
     data[
@@ -251,18 +307,17 @@ st.dataframe(
             "Ville", "Saison", "PCM",
             "Tmax_PV_seul_C", "Tmax_PV_PCM_C",
             "Reduction_Tmax_C",
-            "E_PV_seul_kWh_m2_day", "E_PV_PCM_kWh_m2_day",
-            "Gain_E_percent", "Score_global"
+            "Reduction_moyenne_C",
+            "E_PV_seul_kWh_m2_day",
+            "E_PV_PCM_kWh_m2_day",
+            "Gain_E_percent",
+            "Score_global"
         ]
     ],
     use_container_width=True
 )
 
-# ==========================
-# SYNTHESE PAR VILLE
-# ==========================
-st.markdown("<div class='section-title'>Synthèse finale par ville</div>", unsafe_allow_html=True)
-
+st.markdown("<div class='section'>Synthèse par ville</div>", unsafe_allow_html=True)
 st.dataframe(synthese, use_container_width=True)
 
 fig4 = px.bar(
@@ -275,69 +330,74 @@ fig4 = px.bar(
 st.plotly_chart(fig4, use_container_width=True)
 
 # ==========================
-# RAPPORT TELECHARGEABLE
+# METHODOLOGY
+# ==========================
+st.markdown("<div class='section'>Fondement scientifique</div>", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="info-box">
+Cette plateforme est issue d’un travail de modélisation thermo-électrique et d’optimisation paramétrique
+d’un système photovoltaïque couplé à un matériau à changement de phase encapsulé.
+
+L’étude considère plusieurs villes marocaines, différentes saisons et plusieurs matériaux PCM.
+Les performances sont évaluées à partir d’indicateurs thermiques, électriques et économiques :
+température maximale du module, réduction thermique, énergie journalière produite, gain électrique
+et score global de performance.
+
+La plateforme recommande l’architecture PV–PCM la plus adaptée au contexte climatique choisi,
+tout en permettant une comparaison directe entre les différents matériaux étudiés.
+</div>
+""", unsafe_allow_html=True)
+
+# ==========================
+# REPORT
 # ==========================
 rapport = f"""
-RAPPORT DE RESULTATS - PV-PCM ENCAPSULE
+RAPPORT DE DIMENSIONNEMENT PV–PCM ENCAPSULE
 
 Date : {datetime.now().strftime("%d/%m/%Y %H:%M")}
 
-Projet : Optimisation d’un système photovoltaïque refroidi par PCM encapsulé
 Développé par : Imane Kaab
 Encadré par : Pr. Lahoucine Atourki
-Formation : Master Énergies Renouvelables et Stockage - Université Mohammed V de Rabat
+Master : Énergies Renouvelables et Stockage
+Université Mohammed V de Rabat
 
-PARAMETRES D'ENTREE
+PARAMETRES
 Ville : {ville}
 Saison : {saison}
 Type de panneau : {panel_type}
-Puissance nominale : {power} W
+Puissance nominale : {power} Wc
+Surface calculée du module : {surface_module:.2f} m²
 
-RESULTAT OPTIMAL
-PCM recommandé : {pcm_best}
-Température maximale PV seul : {best['Tmax_PV_seul_C']:.2f} °C
-Température maximale PV-PCM : {best['Tmax_PV_PCM_C']:.2f} °C
-Réduction de température maximale : {best['Reduction_Tmax_C']:.2f} °C
+CONFIGURATION RECOMMANDEE
+PCM : {pcm}
+Epaisseur : {thickness}
+Couverture : {coverage}
+Ventilation : {channels}
+Architecture : {architecture}
+
+RESULTATS THERMO-ELECTRIQUES
+Tmax PV seul : {best['Tmax_PV_seul_C']:.2f} °C
+Tmax PV-PCM : {best['Tmax_PV_PCM_C']:.2f} °C
+Réduction Tmax : {best['Reduction_Tmax_C']:.2f} °C
 Gain électrique : {best['Gain_E_percent']:.2f} %
 Score global : {best['Score_global']:.2f}
 
-ETUDE ECONOMIQUE ESTIMATIVE
-Coût estimé : {cout_estime:.0f} MAD
-Gain énergétique journalier : {gain_kwh_day:.3f} kWh/jour
-Gain économique annuel : {gain_mad_year:.1f} MAD/an
-Retour simple estimé : {roi:.1f} ans
-
-METHODOLOGIE
-Les résultats sont issus d’une simulation paramétrique réalisée sous Python.
-La plateforme ne génère pas les résultats par intelligence artificielle.
-Elle lit directement la base Excel exportée après simulation.
-La sélection optimale est basée sur un score combinant la réduction thermique,
-le gain électrique et la performance globale du système PV-PCM encapsulé.
+ENERGIE ET ECONOMIE
+Energie PV seul : {E_pv_day:.3f} kWh/jour
+Energie PV-PCM : {E_pcm_day:.3f} kWh/jour
+Gain annuel : {gain_year:.2f} kWh/an
+Valorisation annuelle : {gain_mad:.2f} MAD/an
+Coût système PCM : {cout_systeme:.0f} MAD
+Retour simple : {retour:.1f} ans
 """
 
 st.download_button(
-    label="📄 Télécharger le rapport de résultat",
-    data=rapport,
-    file_name=f"rapport_pv_pcm_{ville}_{saison}.txt",
+    "📄 Télécharger le rapport de dimensionnement",
+    rapport,
+    file_name=f"Rapport_PV_PCM_{ville}_{saison}.txt",
     mime="text/plain"
 )
-
-# ==========================
-# METHODOLOGIE
-# ==========================
-st.markdown("<div class='section-title'>Méthodologie scientifique</div>", unsafe_allow_html=True)
-
-st.markdown("""
-La plateforme est basée sur une démarche en quatre étapes :
-
-1. **Collecte des données climatiques** représentatives des villes marocaines étudiées.  
-2. **Simulation thermique et électrique sous Python** du système PV seul et du système PV–PCM encapsulé.  
-3. **Optimisation paramétrique** selon la ville, la saison et le type de PCM.  
-4. **Visualisation interactive** des résultats via Streamlit.
-
-Le site ne remplace pas le modèle numérique.  
-Il sert d’interface de consultation et d’aide à la décision à partir des résultats validés.
-""")
 
 st.markdown("""
 <div class="footer">
