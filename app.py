@@ -337,7 +337,7 @@ with c3:
     <div class="card">
     <div class="metric-title">Gain vs PCM 100 %</div>
     <div class="metric-value">{vals['gain_enc_vs_100_pct']:.2f} %</div>
-    <div class="metric-sub">Hypothèse d'encapsulation du rapport</div>
+    <div class="metric-sub"></div>
     </div>
     """, unsafe_allow_html=True)
 with c4:
@@ -386,7 +386,7 @@ with colB:
     <p><b>Couverture :</b> {float(best_enc['Coverage'])*100:.0f} %</p>
     <p><b>Nombre de canaux :</b> {int(best_enc['Nombre_canaux'])}</p>
     <p><b>Largeur des canaux :</b> {float(best_enc['Largeur_canal_m'])*1000:.0f} mm</p>
-    <p>La comparaison économique utilise une couverture encapsulée de 60 %, conformément à la section technico-environnementale du rapport.</p>
+    <p>La comparaison économique utilise une couverture encapsulée de 60 %.</p>
     </div>
     """, unsafe_allow_html=True)
 
