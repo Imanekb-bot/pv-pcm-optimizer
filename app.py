@@ -151,7 +151,7 @@ gain_day = E_pcm_day - E_pv_day
 gain_year = gain_day * 365
 gain_mad = gain_year * prix_kwh
 
-pcm_cost = {"RT21": 280, "RT25": 320, "RT31": 360, "RT35": 390}
+pcm_cost = {"RT21": 20, "RT25": 25, "RT31": 25, "RT35": 20}
 cout_systeme = pcm_cost.get(pcm, 320) * surface_module * 3.2
 
 
